@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Czujka — audyt strony WWW</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#EDF1EF; --surface:#FFFFFF; --surface-2:#F5F8F6;
+  --ink:#14211E; --ink-soft:#5B6A66; --line:#E0E6E3;
+  --brand:#0C6E63; --brand-soft:#E3F0ED;
+  --good:#2F7D5B; --good-bg:#E6F2EB;
+  --warn:#A2660B; --warn-bg:#F6EEDC;
+  --crit:#B23A2E; --crit-bg:#F7E3E0;
+  --ring-track:#E4EAE7;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1513; --surface:#161F1C; --surface-2:#1B2521;
+    --ink:#E7EDEB; --ink-soft:#99A7A2; --line:#273330;
+    --brand:#35A89B; --brand-soft:#15251F;
+    --good:#5EB88B; --good-bg:#14271D;
+    --warn:#D4A14B; --warn-bg:#2A2313;
+    --crit:#E0776B; --crit-bg:#2B1715;
+    --ring-track:#273330;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1513; --surface:#161F1C; --surface-2:#1B2521;
+  --ink:#E7EDEB; --ink-soft:#99A7A2; --line:#273330;
+  --brand:#35A89B; --brand-soft:#15251F;
+  --good:#5EB88B; --good-bg:#14271D;
+  --warn:#D4A14B; --warn-bg:#2A2313;
+  --crit:#E0776B; --crit-bg:#2B1715;
+  --ring-track:#273330;
+}
+*{box-sizing:inherit;margin:0;padding:0}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 12px)}
+body{font-family:var(--body);background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 0 8px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.01em;color:var(--ink)}
+.brand .mark{width:26px;height:26px;display:block}
+.demo-chip{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);padding:5px 11px;border-radius:999px}
+
+.hero{padding:44px 0 8px}
+.hero h1{font-family:var(--display);font-weight:600;font-size:clamp(28px,5.2vw,40px);line-height:1.1;letter-spacing:-.02em;max-width:17ch}
+.hero p.lead{margin-top:16px;font-size:17px;color:var(--ink-soft);max-width:54ch}
+
+.searchrow{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap}
+.field{flex:1 1 320px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:0 14px;transition:border-color .15s}
+.field:focus-within{border-color:var(--brand)}
+.field .proto{color:var(--ink-soft);font-size:15px;user-select:none}
+.field input{flex:1;border:none;outline:none;background:transparent;font-family:var(--body);font-size:16px;color:var(--ink);padding:15px 0;min-width:0}
+.field input::placeholder{color:var(--ink-soft);opacity:.7}
+.btn{font-family:var(--body);font-weight:600;font-size:16px;color:#fff;background:var(--brand);border:none;border-radius:12px;padding:0 24px;height:52px;cursor:pointer;transition:filter .15s,transform .05s;white-space:nowrap}
+.btn:hover{filter:brightness(1.07)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.55;cursor:default}
+
+.examples{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-soft)}
+.examples button{font-family:var(--body);font-size:13.5px;color:var(--brand);background:none;border:none;border-bottom:1px dashed var(--brand);cursor:pointer;padding:0 0 1px}
+.err{margin-top:12px;color:var(--crit);font-size:14px;display:none}
+.err.show{display:block}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;margin-top:30px;display:none}
+.panel.show{display:block}
+.panel h2{font-family:var(--display);font-weight:600;font-size:18px;margin-bottom:4px}
+.panel .target{color:var(--ink-soft);font-size:14px;word-break:break-all}
+.steps{margin-top:18px;display:flex;flex-direction:column;gap:2px}
+.step{display:flex;align-items:center;gap:13px;padding:11px 4px;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:none}
+.step .ic{width:22px;height:22px;flex:none;display:grid;place-items:center}
+.step .nm{font-size:15px;font-weight:500;color:var(--ink)}
+.step.pending .nm{color:var(--ink-soft)}
+.step .status{margin-left:auto;font-size:13px;color:var(--ink-soft)}
+.dot{width:11px;height:11px;border-radius:50%}
+.spinner{width:17px;height:17px;border:2.4px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hollow{width:11px;height:11px;border-radius:50%;border:2px solid var(--line)}
+
+.report{margin-top:30px;display:none}
+.report.show{display:block;animation:rise .45s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.summary{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.gauge{width:128px;height:128px;flex:none;position:relative}
+.gauge svg{transform:rotate(-90deg)}
+.gauge .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.gauge .num b{font-family:var(--display);font-weight:700;font-size:38px;line-height:1;letter-spacing:-.02em}
+.gauge .num span{font-size:12px;color:var(--ink-soft);margin-top:3px}
+.summary .meta{flex:1 1 260px;min-width:220px}
+.summary .meta h2{font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.01em;word-break:break-all}
+.summary .stamp{margin-top:4px;font-size:12.5px;color:var(--ink-soft)}
+.summary .verdict{margin-top:8px;font-size:15px;color:var(--ink-soft)}
+.tallies{margin-top:16px;display:flex;gap:9px;flex-wrap:wrap}
+.tally{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:500;padding:6px 12px;border-radius:999px}
+.tally .dot{width:9px;height:9px}
+.tally.crit{color:var(--crit);background:var(--crit-bg)}
+.tally.warn{color:var(--warn);background:var(--warn-bg)}
+.tally.good{color:var(--good);background:var(--good-bg)}
+
+.toolbar{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg-btn{font-family:var(--body);font-size:14px;font-weight:500;color:var(--ink-soft);background:none;border:none;border-radius:8px;padding:7px 14px;cursor:pointer}
+.seg-btn.active{background:var(--brand-soft);color:var(--brand);font-weight:600}
+.export{font-family:var(--body);font-size:14px;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.export:hover{border-color:var(--brand);color:var(--brand)}
+
+.plan{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+.plan-h{font-family:var(--display);font-weight:600;font-size:18px;display:flex;align-items:baseline;gap:10px}
+.plan-h .plan-sub{font-family:var(--body);font-weight:400;font-size:13.5px;color:var(--ink-soft)}
+.plan ol{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:2px}
+.plan li{display:flex;gap:14px;align-items:flex-start;padding:13px 6px;border-top:1px solid var(--line);cursor:pointer}
+.plan li:hover{background:var(--surface-2)}
+.plan .pnum{width:26px;height:26px;flex:none;border-radius:7px;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;font-family:var(--mono)}
+.plan .ptit{font-size:15px;font-weight:600;color:var(--ink)}
+.plan .pmeta{margin-top:4px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.eff-sam{color:var(--good);background:var(--good-bg)}
+.eff-sred{color:var(--warn);background:var(--warn-bg)}
+.eff-it{color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line)}
+.pts{font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+
+.sections{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;scroll-margin-top:16px}
+.sec-head{display:flex;align-items:center;gap:13px;padding:16px 18px;cursor:pointer;user-select:none;width:100%;background:none;border:none;text-align:left;font-family:var(--body)}
+.sec-head .sdot{width:13px;height:13px;border-radius:50%;flex:none}
+.sec-head .stit{font-family:var(--display);font-weight:600;font-size:16.5px;color:var(--ink)}
+.sec-head .sdesc{font-size:13px;color:var(--ink-soft);margin-top:2px}
+.sec-head .scount{margin-left:auto;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:10px;flex:none}
+.pill{font-size:11px;font-weight:600;color:var(--brand);background:var(--brand-soft);padding:4px 9px;border-radius:999px;white-space:nowrap}
+.chev{transition:transform .2s;color:var(--ink-soft)}
+.sec.open .chev{transform:rotate(180deg)}
+.sec-body{display:none;padding:0 18px 10px}
+.sec.open .sec-body{display:block}
+.method{font-size:12.5px;color:var(--ink-soft);background:var(--surface-2);border-radius:9px;padding:10px 12px;margin:2px 0 4px;line-height:1.5}
+.method b{color:var(--ink);font-weight:600}
+
+.find{display:flex;gap:13px;padding:16px 0;border-top:1px solid var(--line)}
+.find:first-of-type{border-top:none}
+.find .fic{width:22px;height:22px;flex:none;margin-top:1px}
+.find .fbody{min-width:0;flex:1}
+.find .ftit{font-weight:600;font-size:15px;color:var(--ink)}
+.find .fchips{margin-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.find .frow{margin-top:7px;font-size:14px;color:var(--ink-soft);line-height:1.55}
+.find .lbl{font-weight:600;color:var(--ink)}
+.find code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--ink);word-break:break-word}
+.find .loc{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--ink);word-break:break-all;display:inline-block}
+.find.crit .ftit{color:var(--crit)}
+.find.warn .ftit{color:var(--warn)}
+.find.ok .ftit{color:var(--ink)}
+
+.report.filtered .find.ok{display:none}
+.report.filtered .sec.all-ok{display:none}
+
+.rescan{margin:22px auto 0;display:block;font-family:var(--body);font-size:15px;font-weight:600;color:var(--brand);background:none;border:1.5px solid var(--line);border-radius:12px;padding:12px 22px;cursor:pointer}
+.rescan:hover{border-color:var(--brand)}
+
+.footnote{margin:36px 0 44px;font-size:13px;color:var(--ink-soft);text-align:center;line-height:1.6}
+
+@media (max-width:560px){
+  .summary{gap:18px}
+  .gauge{width:108px;height:108px}
+  .gauge .num b{font-size:32px}
+  .btn{flex:1 1 100%}
+  .toolbar{justify-content:stretch}
+  .seg{flex:1}
+  .seg-btn{flex:1}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+@media print{
+  body{background:#fff}
+  .topbar .demo-chip,.hero,.panel,.footnote,.toolbar,.rescan{display:none!important}
+  .report{display:block!important;margin-top:8px}
+  .report.filtered .find.ok,.report.filtered .sec.all-ok{display:block!important}
+  .sec{break-inside:avoid;box-shadow:none}
+  .sec .sec-body{display:block!important}
+  .sec-head{cursor:default}
+  .chev{display:none}
+  .find,.plan li{break-inside:avoid}
+  .plan li{cursor:default}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="var(--brand)" stroke-width="2"/>
+        <circle cx="12" cy="12" r="3.3" fill="var(--brand)"/>
+      </svg>
+      czujka
+    </div>
+    <span class="demo-chip">Demo</span>
+  </header>
+
+  <section class="hero">
+    <h1>Sprawdź, czy Twoja strona działa, jest bezpieczna i zgodna z RODO</h1>
+    <p class="lead">Wklej link, a dostaniesz prosty raport po polsku: gdzie jest problem, co dokładnie jest nie tak, jak to poprawić i od czego zacząć.</p>
+
+    <div class="searchrow">
+      <label class="field">
+        <span class="proto">https://</span>
+        <input id="url" type="text" inputmode="url" placeholder="twojafirma.pl" autocomplete="off" spellcheck="false" aria-label="Adres strony">
+      </label>
+      <button class="btn" id="scanBtn">Skanuj stronę</button>
+    </div>
+    <div class="examples">
+      <span>Przykłady:</span>
+      <button data-ex="okna-nowak.pl">okna-nowak.pl</button>
+      <button data-ex="meble-kowalski.pl">meble-kowalski.pl</button>
+      <button data-ex="stolarnia-las.pl">stolarnia-las.pl</button>
+    </div>
+    <p class="err" id="err">Wpisz adres strony, na przykład twojafirma.pl</p>
+  </section>
+
+  <section class="panel" id="panel" aria-live="polite">
+    <h2>Skanuję stronę</h2>
+    <div class="target" id="scanTarget"></div>
+    <div class="steps" id="steps"></div>
+  </section>
+
+  <section class="report" id="report" aria-live="polite"></section>
+
+  <p class="footnote">
+    Plakietka „Na żywo” oznacza prawdziwy skan z backendu, „Demo” to przykładowe dane (gdy backend niedostępny).<br>
+    Uruchomienie backendu i trybu aktywnego opisuje README. Testy aktywne (logika, nadużycia) tylko na własnej stronie lub za zgodą właściciela.
+  </p>
+
+</div>
+
+<script>
+const CATS = [
+  { id:"dostepnosc", name:"Dostępność i działanie", desc:"Czy strona odpowiada i jak szybko się ładuje",
+    method:"wysyłamy zapytania HTTP do strony i podstron (kod odpowiedzi, czas) i ładujemy ją w przeglądarce Playwright na emulacji telefonu.",
+    items:[
+      {sev:"ok",  t:"Strona odpowiada poprawnie", where:"Strona główna (/)", found:"Kod odpowiedzi <code>200 OK</code>, czas odpowiedzi 1,2 s.", m:"Serwer zwraca stronę bez błędów.", f:"Nic nie trzeba robić."},
+      {sev:"warn", eff:"srednie", t:"Wolne ładowanie na telefonie (3,8 s)", where:"Strona główna (/), symulacja telefonu na 4G", found:"Pełne załadowanie: 3,8 s (zalecane poniżej 2,5 s). Najcięższy plik: <code>/img/hero.jpg</code> (2,1 MB).", m:"Część osób zamyka stronę, zanim się załaduje.", f:"Zmniejsz zdjęcia i włącz pamięć podręczną na serwerze."},
+      {sev:"crit", eff:"it", t:"Podstrona zwraca błąd serwera (500)", where:"Podstrona /realizacje", found:"Adres <code>%URL%/realizacje</code> zwraca <code>500 Internal Server Error</code> zamiast strony.", m:"Ta podstrona nie otwiera się w ogóle, klient widzi komunikat o błędzie.", f:"Przekaż adres podstrony informatykowi, błąd jest po stronie serwera."}
+    ]},
+  { id:"bledy", name:"Błędy i glitche", desc:"Czy coś się zawiesza, psuje lub źle wyświetla",
+    method:"Playwright nasłuchuje błędów JavaScript i nieudanych requestów, próbuje wysłać formularze i renderuje stronę na kilku szerokościach ekranu.",
+    items:[
+      {sev:"ok",  t:"Układ wyświetla się poprawnie", where:"Strona główna, widok telefonu i komputera", found:"Brak elementów nachodzących na siebie.", m:"Strona nie rozjeżdża się na różnych ekranach.", f:"Nic nie trzeba robić."},
+      {sev:"crit", eff:"it", t:"Formularz kontaktowy nie wysyła wiadomości", where:"/kontakt, formularz kontaktowy", found:"Po kliknięciu „Wyślij” skrypt zgłasza <code>TypeError: sendForm is not a function</code> (<code>/js/forms.js:42</code>). Wiadomość nie dochodzi.", m:"Klient wypełnia formularz i nic się nie dzieje. Tracisz zapytania.", f:"Napraw skrypt wysyłki formularza albo podmień na działający."},
+      {sev:"warn", eff:"it", t:"4 błędy w konsoli przeglądarki", where:"Strona główna (/), konsola przeglądarki", found:"4 błędy JavaScript, m.in. <code>jQuery is not defined</code> (<code>/js/slider.js:8</code>).", m:"Skrypty zgłaszają błędy. Na razie nie widać ich gołym okiem, ale mogą coś psuć.", f:"Przekaż listę błędów osobie, która robiła stronę."},
+      {sev:"warn", eff:"sam", t:"2 linki prowadzą donikąd", where:"Menu górne i stopka", found:"Linki <code>/oferta-2023</code> i <code>/blog/nowosci</code> zwracają <code>404 Not Found</code>.", m:"Klient klika i trafia na stronę z błędem.", f:"Popraw adresy linków albo je usuń."},
+      {sev:"warn", eff:"it", t:"Menu rozjeżdża się na telefonie", where:"Menu górne, szerokość ekranu 375 px", found:"Pozycje menu nachodzą na logo przy szerokości poniżej 400 px.", m:"Na małym ekranie menu nachodzi na treść.", f:"Popraw styl menu dla widoku na telefonie."}
+    ]},
+  { id:"bezpieczenstwo", name:"Bezpieczeństwo", desc:"Czy strona i dane klientów są chronione",
+    method:"czytamy nagłówki odpowiedzi i certyfikat TLS, sprawdzamy typowe wrażliwe ścieżki (np. /.env). Aktywne testy tylko po weryfikacji właściciela.",
+    items:[
+      {sev:"ok",  t:"Połączenie jest szyfrowane (HTTPS)", where:"Cała domena", found:"Certyfikat ważny, przekierowanie z <code>http</code> na <code>https</code> działa.", m:"Dane między klientem a stroną są zaszyfrowane.", f:"Nic nie trzeba robić."},
+      {sev:"crit", eff:"sam", t:"Certyfikat SSL wygasa za 8 dni", where:"Domena główna", found:"Certyfikat dla <code>%URL%</code> wygasa za 8 dni (wystawca Let's Encrypt). Po tej dacie przeglądarki pokażą czerwone ostrzeżenie.", m:"Wygasły certyfikat odstrasza klientów komunikatem o niebezpiecznej stronie.", f:"Odnów certyfikat w panelu hostingu, najlepiej z automatycznym odnawianiem."},
+      {sev:"crit", eff:"it", t:"Publicznie dostępny plik z hasłami (.env)", where:"%URL%/.env", found:"Plik <code>%URL%/.env</code> otwiera się publicznie i zawiera m.in. <code>DB_PASSWORD</code> oraz klucz API. Każdy może go pobrać.", m:"Dane dostępowe do bazy są widoczne w internecie dla każdego.", f:"Natychmiast usuń plik z serwera i zmień hasła, które w nim były."},
+      {sev:"warn", eff:"it", t:"Brak nagłówka bezpieczeństwa HSTS", where:"Nagłówki odpowiedzi serwera", found:"W odpowiedzi brak nagłówka <code>Strict-Transport-Security</code>.", m:"Strona nie wymusza szyfrowanego połączenia, co ułatwia niektóre ataki.", f:"Dodaj nagłówek HSTS w konfiguracji serwera."},
+      {sev:"warn", eff:"it", t:"Serwer ujawnia wersję oprogramowania", where:"Nagłówki odpowiedzi serwera", found:"Nagłówek <code>Server: Apache/2.4.29 (Ubuntu)</code> ujawnia wersję z znanymi podatnościami.", m:"Ułatwia to szukanie dziur pasujących do tej wersji.", f:"Ukryj informację o wersji w konfiguracji serwera."}
+    ]},
+  { id:"logika", name:"Logika i nadużycia", desc:"Czy kliknięciami można narobić szkód lub kosztów", flag:"Testy po zgodzie",
+    method:"agent przechodzi przez stronę jak użytkownik: klika, wypełnia i wysyła formularze, podaje skrajne dane i sprawdza, czy są limity. Ten moduł wysyła prawdziwe żądania, więc działa na kopii strony albo po zgodzie właściciela.",
+    items:[
+      {sev:"ok",  t:"Płatność wymaga potwierdzenia przed obciążeniem", where:"/zamowienie/platnosc", found:"Przed obciążeniem pojawia się ekran podsumowania z potwierdzeniem.", m:"Nie da się zapłacić przypadkiem jednym kliknięciem.", f:"Nic nie trzeba robić."},
+      {sev:"crit", eff:"it", t:"Brak limitu tworzenia paszportów DPP", where:"/panel/nowy-paszport, formularz tworzenia", found:"Wysłaliśmy 50 zgłoszeń w minutę z jednego adresu IP i wszystkie przeszły. Każde generuje płatny paszport. Bot może w nocy wygenerować tysiące i nabić rachunek.", m:"Brak limitu i ochrony przed botami naraża Cię na wysokie koszty w jedną noc.", f:"Dodaj limit zgłoszeń na IP i konto (rate limiting), CAPTCHA przy masowym tworzeniu oraz dzienny limit paszportów."},
+      {sev:"crit", eff:"it", t:"Dostęp do cudzego paszportu przez zmianę numeru w adresie", where:"/paszport/1024", found:"Zmiana numeru w adresie na <code>%URL%/paszport/1025</code> pokazuje dane innego klienta bez logowania.", m:"Wyciek danych innych klientów, poważne naruszenie.", f:"Sprawdzaj uprawnienia do każdego zasobu po stronie serwera, nie tylko ukrywaj linki."},
+      {sev:"warn", eff:"it", t:"Formularz bez ochrony przed botami", where:"/kontakt", found:"Wysłaliśmy 200 wiadomości w 2 minuty i wszystkie dotarły. Brak CAPTCHA i limitu wysyłek.", m:"Boty mogą zasypać skrzynkę spamem albo użyć formularza do rozsyłki.", f:"Dodaj CAPTCHA lub limit wysyłek na IP."},
+      {sev:"warn", eff:"it", t:"Podwójne kliknięcie wysyła formularz dwa razy", where:"/kontakt, przycisk wyślij", found:"Szybkie dwukrotne kliknięcie tworzy dwa identyczne zgłoszenia. Przycisk nie blokuje się po kliknięciu.", m:"Powstają duplikaty, a przy płatnych akcjach podwójny koszt.", f:"Blokuj przycisk na czas wysyłki i odrzucaj powtórki po stronie serwera."},
+      {sev:"warn", eff:"it", t:"Pole ilości przyjmuje liczby ujemne i ogromne", where:"/zamowienie, pole ilość", found:"Pole przyjmuje wartość <code>-5</code> oraz <code>999999999</code>. Przy <code>-5</code> koszyk pokazuje ujemną cenę.", m:"Błędne dane psują wyliczenia i mogą prowadzić do absurdalnych zamówień.", f:"Ogranicz pole do zakresu od 1 do rozsądnego maksimum i sprawdzaj to po stronie serwera."}
+    ]},
+  { id:"wydajnosc", name:"Wydajność i widoczność", desc:"Jak szybko działa i czy da się ją znaleźć w Google",
+    method:"Lighthouse mierzy wydajność i rozmiar, parser HTML czyta znaczniki meta, atrybuty alt, nagłówki, robots.txt i sitemap.xml.",
+    items:[
+      {sev:"ok",  t:"Strona ma mapę witryny (sitemap)", where:"%URL%/sitemap.xml", found:"Mapa witryny obecna, 24 adresy.", m:"Google łatwiej znajduje wszystkie podstrony.", f:"Nic nie trzeba robić."},
+      {sev:"warn", eff:"sam", t:"Nieskompresowane zdjęcia (strona waży 6,4 MB)", where:"Strona główna (/)", found:"Łączny rozmiar zdjęć: 6,4 MB. Największe: <code>/img/hero.jpg</code> (2,1 MB), <code>/img/realizacja-3.png</code> (1,4 MB).", m:"Ciężkie zdjęcia spowalniają ładowanie, zwłaszcza na telefonie.", f:"Skompresuj zdjęcia, zwykle da się zejść do kilkuset KB bez utraty jakości."},
+      {sev:"warn", eff:"sam", t:"Brak opisu meta na stronie głównej", where:"Strona główna (/), sekcja &lt;head&gt;", found:"Brak znacznika <code>&lt;meta name='description'&gt;</code>. Google wstawi przypadkowy fragment tekstu.", m:"W wynikach Google pod tytułem nie pojawia się zachęcający opis.", f:"Dodaj krótki opis meta, do 160 znaków."},
+      {sev:"warn", eff:"sam", t:"Zdjęcia bez opisów alternatywnych", where:"Strona główna i /galeria", found:"11 z 14 zdjęć nie ma atrybutu <code>alt</code>.", m:"Wyszukiwarki i osoby niewidome nie wiedzą, co jest na zdjęciach.", f:"Dodaj opisy alt do zdjęć."}
+    ]},
+  { id:"rodo", name:"Zgodność z RODO i prawem", desc:"Czy strona spełnia wymogi prawne", flag:"Rzadko sprawdzane",
+    method:"wchodzimy na stronę z czystą sesją i patrzymy, co ładuje się przed zgodą na cookies, szukamy polityki prywatności i klauzul przy formularzach.",
+    items:[
+      {sev:"crit", eff:"it", t:"Google Analytics działa przed zgodą na cookies", where:"Wszystkie podstrony, sekcja &lt;head&gt;", found:"Skrypt Google Analytics (<code>G-XXXXXXX</code>) ładuje się od razu przy wejściu, zanim klikniesz baner cookies. Śledzenie rusza bez zgody.", m:"To naruszenie RODO i realne ryzyko kary.", f:"Ustaw ładowanie skryptów śledzących dopiero po wyrażeniu zgody."},
+      {sev:"crit", eff:"sam", t:"Brak polityki prywatności", where:"Stopka oraz adres /polityka-prywatnosci", found:"Nie znaleziono strony z polityką prywatności ani linku do niej.", m:"Prawo wymaga, by strona informowała, jak przetwarza dane. Jej brak to naruszenie.", f:"Dodaj politykę prywatności i link do niej w stopce."},
+      {sev:"warn", eff:"sam", t:"Polityka prywatności nie wskazuje administratora danych", where:"/polityka-prywatnosci", found:"W dokumencie brak nazwy i danych administratora danych (kto odpowiada za dane).", m:"Klient nie wie, kto odpowiada za jego dane.", f:"Uzupełnij dane firmy jako administratora w polityce prywatności."},
+      {sev:"warn", eff:"sam", t:"Formularz bez zgody na przetwarzanie danych", where:"/kontakt, pod formularzem", found:"Brak klauzuli informacyjnej i checkboxa zgody na przetwarzanie danych.", m:"Formularz zbiera dane bez zgody, co jest niezgodne z RODO.", f:"Dodaj pod formularzem informację i checkbox zgody."},
+      {sev:"warn", eff:"sred", t:"Baner cookies bez opcji odrzucenia", where:"Baner cookies (dół ekranu)", found:"Baner ma tylko przycisk „Akceptuję”. Brak równorzędnego „Odrzuć”.", m:"Prawo wymaga, by odmowa była równie łatwa jak zgoda.", f:"Dodaj przycisk odrzucenia na równi z akceptacją."},
+      {sev:"ok",  t:"Link do polityki prywatności jest w stopce", where:"Stopka", found:"Link obecny na każdej podstronie.", m:"Dokument jest dostępny z każdej strony.", f:"Nic nie trzeba robić."}
+    ]}
+];
+
+const SEV_RANK = {crit:3, warn:2, ok:1};
+const PROB = {crit:0.42, warn:0.58, ok:0.6};
+const PTS = {crit:14, warn:5};
+const EFFORT = {
+  sam:{label:"Zrobisz sam", cls:"eff-sam"},
+  srednie:{label:"Średnie", cls:"eff-sred"},
+  sred:{label:"Średnie", cls:"eff-sred"},
+  it:{label:"Dla informatyka", cls:"eff-it"}
+};
+
+function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function cleanUrl(raw){return raw.trim().replace(/^https?:\/\//i,"").replace(/\/+$/,"")}
+
+function buildResults(url){
+  const rng=mulberry32(hashStr(url));
+  const cats=CATS.map(cat=>{
+    let picked=cat.items.filter(it=>rng()<PROB[it.sev]);
+    const issues=picked.filter(it=>it.sev!=="ok");
+    if(issues.length===0){
+      const ok=cat.items.find(it=>it.sev==="ok");
+      picked=ok?[ok]:[cat.items[0]];
+    }else{
+      const keptIssues=issues.slice(0,3);
+      const ok=picked.find(it=>it.sev==="ok");
+      picked= ok ? keptIssues.concat([ok]) : keptIssues;
+    }
+    picked.sort((a,b)=>SEV_RANK[b.sev]-SEV_RANK[a.sev]);
+    const worst=picked.reduce((w,it)=>Math.max(w,SEV_RANK[it.sev]),1);
+    return {...cat, picked, worst};
+  });
+  let crit=0,warn=0,ok=0;
+  cats.forEach(c=>c.picked.forEach(it=>{if(it.sev==="crit")crit++;else if(it.sev==="warn")warn++;else ok++}));
+  if(crit+warn===0){
+    const bz=cats.find(c=>c.id==="bezpieczenstwo");
+    const w=bz.items.find(it=>it.sev==="warn");
+    bz.picked.unshift(w);bz.worst=Math.max(bz.worst,2);warn++;
+  }
+  let score=Math.max(8,Math.min(100,100-14*crit-5*warn));
+  return {cats,crit,warn,ok,score};
+}
+
+const SEV_COLOR={crit:"var(--crit)",warn:"var(--warn)",ok:"var(--good)"};
+function icon(sev){
+  if(sev==="crit")return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="10" fill="var(--crit-bg)"/><path d="M12 7v6" stroke="var(--crit)" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.3" fill="var(--crit)"/></svg>`;
+  if(sev==="warn")return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="M12 3.5 21 19H3L12 3.5Z" fill="var(--warn-bg)"/><path d="M12 9.5v4" stroke="var(--warn)" stroke-width="2.1" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.25" fill="var(--warn)"/></svg>`;
+  return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none"><circle cx="12" cy="12" r="10" fill="var(--good-bg)"/><path d="M7.5 12.3l3 3 6-6.3" stroke="var(--good)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function effChip(eff){const e=EFFORT[eff]; return e? `<span class="tag ${e.cls}">${e.label}</span>`:"";}
+
+const $=s=>document.querySelector(s);
+const panel=$("#panel"), stepsEl=$("#steps"), report=$("#report"), btn=$("#scanBtn"), input=$("#url"), err=$("#err");
+let busy=false;
+
+async function fetchScan(url){
+  try{
+    const res=await fetch("/api/scan?url="+encodeURIComponent(url),{headers:{Accept:"application/json"}});
+    if(!res.ok) throw 0;
+    const j=await res.json();
+    if(!j || !j.cats) throw 0;
+    return {data:j, real:true};
+  }catch(e){ return {data:buildResults(url), real:false}; }
+}
+function setChip(real){
+  const chip=document.querySelector(".demo-chip");
+  if(!chip) return;
+  if(real){ chip.textContent="Na żywo"; chip.style.color="var(--good)"; chip.style.background="var(--good-bg)"; }
+  else{ chip.textContent="Demo"; chip.style.color="var(--brand)"; chip.style.background="var(--brand-soft)"; }
+}
+
+async function run(){
+  if(busy)return;
+  const url=cleanUrl(input.value);
+  if(!url || !url.includes(".")){ err.classList.add("show"); input.focus(); return; }
+  err.classList.remove("show");
+  busy=true; btn.disabled=true;
+  report.classList.remove("show"); report.innerHTML="";
+
+  $("#scanTarget").textContent=url;
+  stepsEl.innerHTML=`<div class="step"><span class="ic"><span class="spinner"></span></span><span class="nm">Łączę i pobieram stronę</span></div>`;
+  panel.classList.add("show");
+  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+
+  const {data, real}=await fetchScan(url);
+  setChip(real);
+
+  stepsEl.innerHTML=data.cats.map(c=>`<div class="step pending" data-id="${c.id}">
+      <span class="ic"><span class="hollow"></span></span>
+      <span class="nm">${c.name}</span>
+      <span class="status"></span>
+    </div>`).join("");
+
+  const reduce=window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+  const stepDelay=reduce?40:430;
+  let i=0;
+  function tick(){
+    const steps=stepsEl.querySelectorAll(".step");
+    if(i>0){
+      const prev=steps[i-1]; const c=data.cats[i-1];
+      prev.classList.remove("pending");
+      prev.querySelector(".ic").innerHTML=`<span class="dot" style="background:${SEV_COLOR[['','ok','warn','crit'][c.worst]]}"></span>`;
+      const nIssues=c.picked.filter(x=>x.sev!=="ok").length;
+      prev.querySelector(".status").textContent=nIssues? `${nIssues} do poprawy` : "w porządku";
+    }
+    if(i<steps.length){
+      steps[i].querySelector(".ic").innerHTML=`<span class="spinner"></span>`;
+      steps[i].querySelector(".status").textContent="sprawdzam";
+      i++;
+      setTimeout(tick,stepDelay);
+    }else{
+      setTimeout(()=>{ renderReport(url,data); busy=false; btn.disabled=false; }, reduce?40:250);
+    }
+  }
+  tick();
+}
+
+function renderReport(url,data){
+  const sub = s => (s||"").replace(/%URL%/g, url);
+  const r=52, C=2*Math.PI*r;
+  const band = data.score>=85?"var(--good)":data.score>=60?"var(--warn)":"var(--crit)";
+  const verdict = data.score>=85 ? "Strona jest w dobrym stanie, zostało kilka drobiazgów."
+    : data.score>=60 ? "Strona działa, ale jest kilka rzeczy do poprawy."
+    : "Strona ma poważne problemy, warto zająć się nimi szybko.";
+  let stamp="";
+  try{ stamp = new Date().toLocaleString("pl-PL",{day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(e){ stamp=new Date().toISOString().slice(0,16).replace("T"," "); }
+
+  const summary=`<div class="summary">
+    <div class="gauge">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <circle cx="64" cy="64" r="${r}" fill="none" stroke="var(--ring-track)" stroke-width="11"/>
+        <circle cx="64" cy="64" r="${r}" fill="none" stroke="${band}" stroke-width="11" stroke-linecap="round"
+          stroke-dasharray="${C}" stroke-dashoffset="${C}" id="ringArc"/>
+      </svg>
+      <div class="num"><b style="color:${band}">${data.score}</b><span>na 100</span></div>
+    </div>
+    <div class="meta">
+      <h2>${url}</h2>
+      <div class="stamp">Skan: ${stamp}</div>
+      <div class="verdict">${verdict}</div>
+      <div class="tallies">
+        <span class="tally crit"><span class="dot" style="background:var(--crit)"></span>${data.crit} krytyczne</span>
+        <span class="tally warn"><span class="dot" style="background:var(--warn)"></span>${data.warn} ostrzeżenia</span>
+        <span class="tally good"><span class="dot" style="background:var(--good)"></span>${data.ok} w porządku</span>
+      </div>
+    </div>
+  </div>`;
+
+  const toolbar=`<div class="toolbar">
+    <div class="seg" id="filter">
+      <button class="seg-btn active" data-filter="all">Wszystko</button>
+      <button class="seg-btn" data-filter="issues">Tylko problemy</button>
+    </div>
+    <button class="export" id="exportBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Pobierz PDF
+    </button>
+  </div>`;
+
+  // plan naprawy
+  const planItems=[];
+  data.cats.forEach(cat=>cat.picked.forEach(it=>{ if(it.sev!=="ok") planItems.push({it,catName:cat.name,catId:cat.id}); }));
+  planItems.sort((a,b)=>SEV_RANK[b.it.sev]-SEV_RANK[a.it.sev]);
+  let plan="";
+  if(planItems.length){
+    const lis=planItems.map((p,idx)=>`<li data-target="${p.catId}">
+        <span class="pnum" style="background:${SEV_COLOR[p.it.sev]}">${idx+1}</span>
+        <div>
+          <div class="ptit">${p.it.t}</div>
+          <div class="pmeta">${p.catName} · ${effChip(p.it.eff)} <span class="pts">−${PTS[p.it.sev]} pkt</span></div>
+        </div>
+      </li>`).join("");
+    plan=`<div class="plan">
+      <div class="plan-h">Plan naprawy <span class="plan-sub">od najważniejszego</span></div>
+      <ol>${lis}</ol>
+    </div>`;
+  }
+
+  const sections=data.cats.map(cat=>{
+    const nIssues=cat.picked.filter(x=>x.sev!=="ok").length;
+    const open = cat.worst>=2;
+    const sdot = SEV_COLOR[['','ok','warn','crit'][cat.worst]];
+    const flag = cat.flag? `<span class="pill">${cat.flag}</span>`:"";
+    const countTxt = nIssues? `${nIssues} do poprawy` : "w porządku";
+    const finds=cat.picked.map(it=>{
+      const where=sub(it.where), found=sub(it.found);
+      if(it.sev==="ok"){
+        return `<div class="find ok">
+          <span class="fic">${icon(it.sev)}</span>
+          <div class="fbody">
+            <div class="ftit">${it.t}</div>
+            <div class="frow"><span class="lbl">Gdzie:</span> <span class="loc">${where}</span></div>
+            <div class="frow">${found}</div>
+          </div>
+        </div>`;
+      }
+      return `<div class="find ${it.sev}">
+        <span class="fic">${icon(it.sev)}</span>
+        <div class="fbody">
+          <div class="ftit">${it.t}</div>
+          <div class="fchips">${effChip(it.eff)}<span class="pts">−${PTS[it.sev]} pkt do oceny</span></div>
+          <div class="frow"><span class="lbl">Gdzie:</span> <span class="loc">${where}</span></div>
+          <div class="frow"><span class="lbl">Co wykryto:</span> ${found}</div>
+          <div class="frow"><span class="lbl">Co to znaczy:</span> ${it.m}</div>
+          <div class="frow"><span class="lbl">Jak załatać:</span> ${it.f}</div>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="sec ${open?'open':''} ${nIssues?'':'all-ok'}" id="sec-${cat.id}">
+      <button class="sec-head" aria-expanded="${open}">
+        <span class="sdot" style="background:${sdot}"></span>
+        <span>
+          <span class="stit">${cat.name}</span>
+          <span class="sdesc">${cat.desc}</span>
+        </span>
+        <span class="scount">${flag}<span>${countTxt}</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </button>
+      <div class="sec-body">
+        <div class="method"><b>Jak sprawdzamy:</b> ${cat.method}</div>
+        ${finds}
+      </div>
+    </div>`;
+  }).join("");
+
+  report.innerHTML = summary + toolbar + plan + `<div class="sections">${sections}</div>` + `<button class="rescan" id="rescan">Skanuj inną stronę</button>`;
+  report.classList.add("show");
+
+  const arc=$("#ringArc");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    arc.style.transition="stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)";
+    arc.style.strokeDashoffset = C*(1-data.score/100);
+  }));
+
+  report.querySelectorAll(".sec-head").forEach(h=>{
+    h.addEventListener("click",()=>{
+      const sec=h.parentElement, now=!sec.classList.contains("open");
+      sec.classList.toggle("open",now);
+      h.setAttribute("aria-expanded",now);
+    });
+  });
+
+  report.querySelectorAll(".plan li").forEach(li=>{
+    li.addEventListener("click",()=>{
+      const sec=document.getElementById("sec-"+li.dataset.target);
+      if(!sec)return;
+      sec.classList.add("open");
+      sec.querySelector(".sec-head").setAttribute("aria-expanded","true");
+      sec.scrollIntoView({behavior:"smooth",block:"start"});
+    });
+  });
+
+  report.querySelectorAll("#filter .seg-btn").forEach(b=>{
+    b.addEventListener("click",()=>{
+      report.querySelectorAll("#filter .seg-btn").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      report.classList.toggle("filtered", b.dataset.filter==="issues");
+    });
+  });
+
+  $("#exportBtn").addEventListener("click",()=>window.print());
+
+  $("#rescan").addEventListener("click",()=>{
+    report.classList.remove("show"); panel.classList.remove("show");
+    window.scrollTo({top:0,behavior:"smooth"}); input.focus();
+  });
+  report.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+btn.addEventListener("click",run);
+input.addEventListener("keydown",e=>{if(e.key==="Enter")run()});
+input.addEventListener("input",()=>err.classList.remove("show"));
+document.querySelectorAll(".examples button").forEach(b=>{
+  b.addEventListener("click",()=>{ input.value=b.dataset.ex; run(); });
+});
+</script>
+</body>
+</html>
