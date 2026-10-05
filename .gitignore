@@ -1,0 +1,11 @@
+# Pliki tymczasowe Pythona
+__pycache__/
+*.py[cod]
+
+# Srodowiska wirtualne
+.venv/
+venv/
+env/
+
+# Sekrety - token trybu aktywnego nigdy nie trafia do repozytorium
+.env

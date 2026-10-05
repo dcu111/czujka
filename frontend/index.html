@@ -51,6 +51,7 @@ body{font-family:var(--body);background:var(--bg);color:var(--ink);line-height:1
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 0 8px}
 .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.01em;color:var(--ink)}
 .brand .mark{width:26px;height:26px;display:block}
+.demo-banner{display:flex;gap:9px;align-items:flex-start;margin:0 0 16px;padding:13px 16px;border-radius:12px;font-size:14px;line-height:1.5;color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn)}
 .demo-chip{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);padding:5px 11px;border-radius:999px}
 
 .hero{padding:44px 0 8px}
@@ -354,15 +355,25 @@ function effChip(eff){const e=EFFORT[eff]; return e? `<span class="tag ${e.cls}"
 const $=s=>document.querySelector(s);
 const panel=$("#panel"), stepsEl=$("#steps"), report=$("#report"), btn=$("#scanBtn"), input=$("#url"), err=$("#err");
 let busy=false;
+// Pierwotna tresc komunikatu, zeby po bledzie polaczenia przywrocic podpowiedz o adresie.
+const ERR_ADRES=err.textContent;
+const ERR_POLACZENIE="Nie udało się połączyć z serwerem skanowania. Strona nie została sprawdzona — spróbuj ponownie za chwilę.";
 
-async function fetchScan(url){
+async function fetchScan(url, demoAllowed){
   try{
     const res=await fetch("/api/scan?url="+encodeURIComponent(url),{headers:{Accept:"application/json"}});
     if(!res.ok) throw 0;
     const j=await res.json();
     if(!j || !j.cats) throw 0;
     return {data:j, real:true};
-  }catch(e){ return {data:buildResults(url), real:false}; }
+  }catch(e){
+    // Dane przykladowe wolno pokazac WYLACZNIE dla adresow z listy przykladow.
+    // Dla adresu wpisanego przez uzytkownika zmyslony raport o cudzej stronie
+    // bylby falszywym oskarzeniem (np. "publicznie dostepny plik z haslami"),
+    // a wyglada identycznie jak prawdziwy wynik i da sie go pobrac jako PDF.
+    if(demoAllowed === true) return {data:buildResults(url), real:false};
+    return {data:null, real:false};
+  }
 }
 function setChip(real){
   const chip=document.querySelector(".demo-chip");
@@ -371,10 +382,10 @@ function setChip(real){
   else{ chip.textContent="Demo"; chip.style.color="var(--brand)"; chip.style.background="var(--brand-soft)"; }
 }
 
-async function run(){
+async function run(demoAllowed=false){
   if(busy)return;
   const url=cleanUrl(input.value);
-  if(!url || !url.includes(".")){ err.classList.add("show"); input.focus(); return; }
+  if(!url || !url.includes(".")){ err.textContent=ERR_ADRES; err.classList.add("show"); input.focus(); return; }
   err.classList.remove("show");
   busy=true; btn.disabled=true;
   report.classList.remove("show"); report.innerHTML="";
@@ -384,7 +395,18 @@ async function run(){
   panel.classList.add("show");
   panel.scrollIntoView({behavior:"smooth",block:"nearest"});
 
-  const {data, real}=await fetchScan(url);
+  const {data, real}=await fetchScan(url, demoAllowed);
+
+  // Brak danych = backend nie odpowiedzial. Mowimy o tym wprost zamiast
+  // pokazywac ocene, ktorej nikt nie policzyl.
+  if(!data){
+    panel.classList.remove("show");
+    err.textContent=ERR_POLACZENIE;
+    err.classList.add("show");
+    setChip(false);
+    busy=false; btn.disabled=false;
+    return;
+  }
   setChip(real);
 
   stepsEl.innerHTML=data.cats.map(c=>`<div class="step pending" data-id="${c.id}">
@@ -411,13 +433,13 @@ async function run(){
       i++;
       setTimeout(tick,stepDelay);
     }else{
-      setTimeout(()=>{ renderReport(url,data); busy=false; btn.disabled=false; }, reduce?40:250);
+      setTimeout(()=>{ renderReport(url,data,real); busy=false; btn.disabled=false; }, reduce?40:250);
     }
   }
   tick();
 }
 
-function renderReport(url,data){
+function renderReport(url,data,real=true){
   const sub = s => (s||"").replace(/%URL%/g, url);
   const r=52, C=2*Math.PI*r;
   const band = data.score>=85?"var(--good)":data.score>=60?"var(--warn)":"var(--crit)";
@@ -526,7 +548,10 @@ function renderReport(url,data){
     </div>`;
   }).join("");
 
-  report.innerHTML = summary + toolbar + plan + `<div class="sections">${sections}</div>` + `<button class="rescan" id="rescan">Skanuj inną stronę</button>`;
+  // Ostrzezenie stoi NAD wynikiem, a nie w naglowku strony, bo raport czyta
+  // sie po przewinieciu i plakietka w naglowku jest wtedy poza ekranem.
+  const banerDemo = real ? "" : `<div class="demo-banner"><b>To jest raport przykładowy, a nie wynik skanu.</b> Serwer sprawdzający nie odpowiedział, więc widzisz dane poglądowe. Nie dotyczą one adresu, który wpisałeś.</div>`;
+  report.innerHTML = banerDemo + summary + toolbar + plan + `<div class="sections">${sections}</div>` + `<button class="rescan" id="rescan">Skanuj inną stronę</button>`;
   report.classList.add("show");
 
   const arc=$("#ringArc");
@@ -570,11 +595,13 @@ function renderReport(url,data){
   report.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
-btn.addEventListener("click",run);
+// Celowo przez strzalke: addEventListener przekazalby obiekt zdarzenia jako
+// pierwszy argument, a ten jest prawdziwy logicznie i wlaczalby dane przykladowe.
+btn.addEventListener("click",()=>run());
 input.addEventListener("keydown",e=>{if(e.key==="Enter")run()});
 input.addEventListener("input",()=>err.classList.remove("show"));
 document.querySelectorAll(".examples button").forEach(b=>{
-  b.addEventListener("click",()=>{ input.value=b.dataset.ex; run(); });
+  b.addEventListener("click",()=>{ input.value=b.dataset.ex; run(true); });
 });
 </script>
 </body>

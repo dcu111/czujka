@@ -29,11 +29,11 @@ def _idor(url):
         if other.status_code == 200 and len(other.content) > 200 and \
            abs(len(other.content) - len(base.content)) < len(base.content) * 0.5 and \
            "login" not in other.url.lower():
-            return F("crit", "Dostep do cudzego zasobu przez zmiane numeru w adresie",
+            return F("crit", "Dostęp do cudzego zasobu przez zmianę numeru w adresie",
                      where=nxt,
                      found=f"Zmiana numeru w adresie na {nxt} zwraca inny rekord bez logowania.",
-                     m="Mozliwy wyciek danych innych klientow (blad logiczny typu IDOR).",
-                     f="Sprawdzaj uprawnienia do kazdego zasobu po stronie serwera.", eff="it")
+                     m="Możliwy wyciek danych innych klientów (błąd logiczny typu IDOR).",
+                     f="Sprawdzaj uprawnienia do każdego zasobu po stronie serwera.", eff="it")
     except Exception:
         return None
     return None
@@ -48,14 +48,14 @@ def _rate_limit(url, n=15):
     except Exception:
         pass
     if codes and 429 not in codes and all(c < 400 for c in codes):
-        return F("warn", "Brak widocznego limitu zadan (rate limiting)",
-                 where="Strona glowna",
-                 found=f"Wyslano {len(codes)} szybkich zadan z jednego adresu i zaden nie zostal ograniczony (brak kodu 429).",
-                 m="Jesli strona ma platne akcje (np. tworzenie paszportu DPP), bot moze je masowo wywolac i nabic koszty.",
-                 f="Dodaj limit zadan na IP/konto i CAPTCHE przy akcjach, ktore cos tworza lub kosztuja.", eff="it")
-    return F("ok", "Serwer ogranicza nadmierny ruch", where="Strona glowna",
-             found="Przy serii szybkich zadan pojawila sie blokada (kod 429) lub spowolnienie.",
-             m="Trudniej o atak botami i nabicie kosztow.", f="Nic nie trzeba robic.")
+        return F("warn", "Brak widocznego limitu żądań (rate limiting)",
+                 where="Strona główna",
+                 found=f"Wysłano {len(codes)} szybkich żądań z jednego adresu i żaden nie został ograniczony (brak kodu 429).",
+                 m="Jeśli strona ma płatne akcje (np. tworzenie paszportu DPP), bot może je masowo wywołać i nabić koszty.",
+                 f="Dodaj limit żądań na IP/konto i CAPTCHĘ przy akcjach, które coś tworzą lub kosztują.", eff="it")
+    return F("ok", "Serwer ogranicza nadmierny ruch", where="Strona główna",
+             found="Przy serii szybkich żądań pojawiła się blokada (kod 429) lub spowolnienie.",
+             m="Trudniej o atak botami i nabicie kosztów.", f="Nic nie trzeba robić.")
 
 
 def run(url):
@@ -65,10 +65,10 @@ def run(url):
         items.append(idor)
     items.append(_rate_limit(url))
     items.append(F("ok", "Testy specyficzne dla strony (do konfiguracji)",
-                   where="Formularz tworzenia paszportu, pole ilosci, podwojny submit",
-                   found="Limit tworzenia paszportow DPP, walidacja skrajnych danych i podwojnego kliknięcia "
-                         "wymagaja wskazania konkretnego formularza. Skonfiguruj je dla swojej strony.",
+                   where="Formularz tworzenia paszportu, pole ilości, podwójny submit",
+                   found="Limit tworzenia paszportów DPP, walidacja skrajnych danych i podwójnego kliknięcia "
+                         "wymagają wskazania konkretnego formularza. Skonfiguruj je dla swojej strony.",
                    m="", f=""))
-    return cat("logika", "Logika i naduzycia", "Czy kliknieciami mozna narobic szkod lub kosztow",
-               "agent wysyla realne zadania i sprawdza limity oraz bledy logiczne. Tylko po zgodzie wlasciciela.",
+    return cat("logika", "Logika i nadużycia", "Czy kliknięciami można narobić szkód lub kosztów",
+               "agent wysyła realne żądania i sprawdza limity oraz błędy logiczne. Tylko po zgodzie właściciela.",
                items, flag="Testy po zgodzie")
