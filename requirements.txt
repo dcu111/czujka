@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=5.0
+# Opcjonalnie, dla modulu przegladarki (bledy JS, glitche):
+# playwright>=1.44   (po instalacji: playwright install chromium)
